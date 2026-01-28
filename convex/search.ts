@@ -4,11 +4,12 @@ import type { Doc, Id } from './_generated/dataModel'
 import { action, internalQuery } from './_generated/server'
 import { getSkillBadgeMaps, isSkillHighlighted, type SkillBadgeMap } from './lib/badges'
 import { generateEmbedding } from './lib/embeddings'
+import { toPublicSkill, toPublicSoul } from './lib/public'
 import { matchesExactTokens, tokenize } from './lib/searchText'
 
 type HydratedEntry = {
   embeddingId: Id<'skillEmbeddings'>
-  skill: Doc<'skills'>
+  skill: NonNullable<ReturnType<typeof toPublicSkill>>
   version: Doc<'skillVersions'> | null
   ownerHandle: string | null
 }
@@ -61,13 +62,16 @@ export const searchSkills: ReturnType<typeof action> = action({
         results.map((result) => [result._id, result._score]),
       )
 
-      const badgeEntries = (await ctx.runQuery(internal.search.getBadgeMapsForSkills, {
+      const badgeMapEntries = (await ctx.runQuery(internal.search.getSkillBadgeMapsInternal, {
         skillIds: hydrated.map((entry) => entry.skill._id),
       })) as Array<[Id<'skills'>, SkillBadgeMap]>
-      const badgeMapBySkillId = new Map(badgeEntries)
+      const badgeMapBySkillId = new Map(badgeMapEntries)
       const hydratedWithBadges = hydrated.map((entry) => ({
         ...entry,
-        skill: { ...entry.skill, badges: badgeMapBySkillId.get(entry.skill._id) ?? {} },
+        skill: {
+          ...entry.skill,
+          badges: badgeMapBySkillId.get(entry.skill._id) ?? {},
+        },
       }))
 
       const filtered = args.highlightedOnly
@@ -76,9 +80,9 @@ export const searchSkills: ReturnType<typeof action> = action({
 
       exactMatches = filtered.filter((entry) =>
         matchesExactTokens(queryTokens, [
-          entry.skill?.displayName,
-          entry.skill?.slug,
-          entry.skill?.summary,
+          entry.skill.displayName,
+          entry.skill.slug,
+          entry.skill.summary,
         ]),
       )
 
@@ -134,7 +138,9 @@ export const hydrateResults = internalQuery({
           ctx.db.get(embedding.versionId),
           getOwnerHandle(skill.ownerUserId),
         ])
-        return { embeddingId, skill, version, ownerHandle }
+        const publicSkill = toPublicSkill(skill)
+        if (!publicSkill) return null
+        return { embeddingId, skill: publicSkill, version, ownerHandle }
       }),
     )
 
@@ -144,7 +150,7 @@ export const hydrateResults = internalQuery({
 
 type HydratedSoulEntry = {
   embeddingId: Id<'soulEmbeddings'>
-  soul: Doc<'souls'> | null
+  soul: NonNullable<ReturnType<typeof toPublicSoul>>
   version: Doc<'soulVersions'> | null
 }
 
@@ -192,9 +198,9 @@ export const searchSouls: ReturnType<typeof action> = action({
 
       exactMatches = hydrated.filter((entry) =>
         matchesExactTokens(queryTokens, [
-          entry.soul?.displayName,
-          entry.soul?.slug,
-          entry.soul?.summary,
+          entry.soul.displayName,
+          entry.soul.slug,
+          entry.soul.summary,
         ]),
       )
 
@@ -228,10 +234,20 @@ export const hydrateSoulResults = internalQuery({
       const soul = await ctx.db.get(embedding.soulId)
       if (soul?.softDeletedAt) continue
       const version = await ctx.db.get(embedding.versionId)
-      entries.push({ embeddingId, soul, version })
+      const publicSoul = toPublicSoul(soul)
+      if (!publicSoul) continue
+      entries.push({ embeddingId, soul: publicSoul, version })
     }
 
     return entries
+  },
+})
+
+export const getSkillBadgeMapsInternal = internalQuery({
+  args: { skillIds: v.array(v.id('skills')) },
+  handler: async (ctx, args) => {
+    const badgeMap = await getSkillBadgeMaps(ctx, args.skillIds)
+    return Array.from(badgeMap.entries())
   },
 })
 
