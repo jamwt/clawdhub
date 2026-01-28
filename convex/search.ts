@@ -2,8 +2,8 @@ import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import { action, internalQuery } from './_generated/server'
+import { getSkillBadgeMaps, isSkillHighlighted, type SkillBadgeMap } from './lib/badges'
 import { generateEmbedding } from './lib/embeddings'
-import { getSkillBadgeMaps, isSkillHighlighted } from './lib/badges'
 import { matchesExactTokens, tokenize } from './lib/searchText'
 
 type HydratedEntry = {
@@ -61,10 +61,10 @@ export const searchSkills: ReturnType<typeof action> = action({
         results.map((result) => [result._id, result._score]),
       )
 
-      const badgeMapBySkillId = await getSkillBadgeMaps(
-        ctx,
-        hydrated.map((entry) => entry.skill._id),
-      )
+      const badgeEntries = (await ctx.runQuery(internal.search.getBadgeMapsForSkills, {
+        skillIds: hydrated.map((entry) => entry.skill._id),
+      })) as Array<[Id<'skills'>, SkillBadgeMap]>
+      const badgeMapBySkillId = new Map(badgeEntries)
       const hydratedWithBadges = hydrated.map((entry) => ({
         ...entry,
         skill: { ...entry.skill, badges: badgeMapBySkillId.get(entry.skill._id) ?? {} },
@@ -98,6 +98,14 @@ export const searchSkills: ReturnType<typeof action> = action({
       }))
       .filter((entry) => entry.skill)
       .slice(0, limit)
+  },
+})
+
+export const getBadgeMapsForSkills = internalQuery({
+  args: { skillIds: v.array(v.id('skills')) },
+  handler: async (ctx, args): Promise<Array<[Id<'skills'>, SkillBadgeMap]>> => {
+    const badgeMap = await getSkillBadgeMaps(ctx, args.skillIds)
+    return Array.from(badgeMap.entries())
   },
 })
 

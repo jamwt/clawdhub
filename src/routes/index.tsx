@@ -46,10 +46,11 @@ function SkillsHome() {
                   dir: undefined,
                   highlighted: undefined,
                   view: undefined,
+                  focus: undefined,
                 }}
                 className="btn"
               >
-                Browse skills
+                See all skills
               </Link>
             </div>
           </div>
@@ -118,10 +119,11 @@ function SkillsHome() {
               dir: undefined,
               highlighted: undefined,
               view: undefined,
+              focus: undefined,
             }}
             className="btn"
           >
-            See all skills
+            Browse skills
           </Link>
         </div>
       </section>
@@ -160,7 +162,13 @@ function OnlyCrabsHome() {
               </Link>
               <Link
                 to="/souls"
-                search={{ q: undefined, sort: undefined, dir: undefined, view: undefined }}
+                search={{
+                  q: undefined,
+                  sort: undefined,
+                  dir: undefined,
+                  view: undefined,
+                  focus: undefined,
+                }}
                 className="btn"
               >
                 Browse souls
@@ -179,6 +187,7 @@ function OnlyCrabsHome() {
                     sort: undefined,
                     dir: undefined,
                     view: undefined,
+                    focus: undefined,
                   },
                 })
               }}
@@ -222,7 +231,13 @@ function OnlyCrabsHome() {
         <div className="section-cta">
           <Link
             to="/souls"
-            search={{ q: undefined, sort: undefined, dir: undefined, view: undefined }}
+            search={{
+              q: undefined,
+              sort: undefined,
+              dir: undefined,
+              view: undefined,
+              focus: undefined,
+            }}
             className="btn"
           >
             See all souls
