@@ -300,13 +300,13 @@ export const getUnprocessedEventBatch = internalQuery({
     const limit = args.limit ?? EVENT_BATCH_SIZE
     const cursor = args.cursorCreationTime
 
-    // Query events after the cursor, ordered by _creationTime (default order)
-    let query = ctx.db.query('skillStatEvents')
-    if (cursor !== undefined) {
-      query = query.filter((q) => q.gt(q.field('_creationTime'), cursor))
-    }
-
-    const events = await query.take(limit)
+    // Query events after the cursor using the built-in creation time index
+    const events = await ctx.db
+      .query('skillStatEvents')
+      .withIndex('by_creation_time', (q) =>
+        cursor !== undefined ? q.gt('_creationTime', cursor) : q,
+      )
+      .take(limit)
     return events
   },
 })
